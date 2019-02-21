@@ -14,7 +14,10 @@ columns = int(ds.Columns)
 
 intensidades = [] ##Histogram Matrix
 
-umbralBordes = 10000
+realizarHistograma()### Create the histogram
+
+umbralBordes = varianzaClase()
+
 
 ################################
 
@@ -63,6 +66,58 @@ def definirBordes(image,matrizX,matrizY):
 	return image
 #####################################################################
 
+######calcular peso ############
+
+def peso(t1,t2):
+	aux=0
+	for i in range(t1,t2):
+		aux+=intensidades[i]
+	
+	
+	return aux
+
+######calcular media ############
+def media(t1,t2, pixels):
+	aux=0
+	for i in range(t1,t2):
+		aux+=intensidades[i]*i
+	
+	aux=aux/pixels
+
+	return aux
+
+
+######calcular varianza############
+def varianza( t1,t2, pixels, media):
+	aux=0
+	for i in range(t1,t2):
+		aux+=(((i-media)**2)*intensidades[i]
+	
+	aux=aux/pixels
+
+	return aux
+
+
+#### Calculate Within Class Variance####
+def varianzaClase():
+	varianzas=[]
+	largoVector=len(intensidades)
+	for i in range (2**16):
+		###Background##
+		pesoBack=peso(0,i)
+		mediaBack=media(0,i,pesoBack)
+		varianzaBack=varianza(0,i,pesoBack,mediaBack)
+		pesoBack=pesoBack/(rows*columns)
+		###Foreground##
+		pesoFor=peso(i,largoVector)
+		mediaFor=media(i,largoVector,pesoBack)
+		varianzaFor=varianza(i,largoVector,pesoFor,mediaFor)
+		pesoFor=pesoBack/(rows*columns)
+
+		varianzas.append(pesoBack*varianzaBack+pesoFor*varianzaFor)
+
+	return min(varianzas)
+		
 		
 
 ############Aplying the filter############
@@ -90,7 +145,7 @@ plt.subplot(1,7,1)
 plt.title('DICOM IMAGE')
 plt.imshow(ds.pixel_array,cmap=plt.get_cmap('gray'))
 
-realizarHistograma()### Create the histogram
+
 plt.subplot(1,7,3)
 plt.title('HISTOGRAM')
 plt.plot(intensidades)
