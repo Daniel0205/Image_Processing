@@ -14,16 +14,11 @@ columns = int(ds.Columns)
 
 intensidades = [] ##Histogram Matrix
 
-realizarHistograma()### Create the histogram
-
-umbralBordes = varianzaClase()
-
-
 ################################
 
 #Funtion that fill the histogram's vector array
 def realizarHistograma():
-	for i in range((2**16)):
+	for i in range((len(intensidades))):
 		intensidades.append(0)
 
 	for i in range(rows):
@@ -82,7 +77,7 @@ def media(t1,t2, pixels):
 	for i in range(t1,t2):
 		aux+=intensidades[i]*i
 	
-	aux=aux/pixels
+	if pixels!=0: aux=aux/pixels
 
 	return aux
 
@@ -91,9 +86,9 @@ def media(t1,t2, pixels):
 def varianza( t1,t2, pixels, media):
 	aux=0
 	for i in range(t1,t2):
-		aux+=(((i-media)**2)*intensidades[i]
+		aux+=((i-media)**2)*intensidades[i]
 	
-	aux=aux/pixels
+	if pixels!=0: aux=aux/pixels
 
 	return aux
 
@@ -102,7 +97,8 @@ def varianza( t1,t2, pixels, media):
 def varianzaClase():
 	varianzas=[]
 	largoVector=len(intensidades)
-	for i in range (2**16):
+	for i in range (len(intensidades)):
+		print(i)
 		###Background##
 		pesoBack=peso(0,i)
 		mediaBack=media(0,i,pesoBack)
@@ -129,6 +125,9 @@ filterImage = filtro(filterImage,matriz,scalar)
 ###########################################
 
 ####Creating the borders matrix#########
+realizarHistograma()### Create the histogram
+umbralBordes = varianzaClase()### find the Otsu Thresholding
+
 matrizSobelX=[[-1,0,1],[-2,0,2],[-1,0,1]] #Gradient matrix in X
 matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
 
