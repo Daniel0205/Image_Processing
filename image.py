@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import Gaussian as filtros
 from math import fabs
 from PIL import Image
-import numpy as numpy
+import numpy as np
 
 """########Read image##############
 filename = "MRI Images/MRI01.dcm"
@@ -22,21 +22,22 @@ columns = int(ds.Columns)
 
 ds = Image.open("MRI Images/lenna.png")
 rows,columns=ds.size
-data = numpy.array(ds) 
+data = np.array(ds) 
 
 intensidades = [] ##Histogram Matrix
 
 
 #Funtion that fill the histogram's vector array
 def realizarHistograma():
-	for i in range(255):
+	for i in range(np.amax(data)+1):
 		intensidades.append(0)
 
 	for i in range(rows):
 		for j in range(columns):
-			#intensidades[ds.pixel_array[i,j]]=intensidades[ds.pixel_array[i,j]]+1
+			#intensidades[ds.pixel_array[i,j]-1]=intensidades[ds.pixel_array[i,j]-1]+1
 			intensidades[data[i,j]]=intensidades[data[i,j]]+1
 
+	
 ###############################################	
 
 
@@ -44,10 +45,10 @@ def realizarHistograma():
 def filtro(image,matriz,scalar):
 	copy=image.copy()
 
-	for i in range(rows-1):
-		for j in range(columns-1):
+	for i in range(rows):
+		for j in range(columns):
 			if i==0 or i==rows-1 or j==0 or j==columns-1:
-				copy[i,j]=0
+				copy[i,j]=image[i,j]
 			else:
 				aux=image[i-1,j-1]*matriz[0][0]
 				aux+=image[i-1,j]*matriz[0][1]
@@ -68,7 +69,7 @@ def filtro(image,matriz,scalar):
 def definirBordes(image,matrizX,matrizY):
 	for i in range(rows):
 		for j in range(columns):
-			if (fabs(matrizX[i,j])+fabs(matrizY[i,j])>umbralBordes):
+			if ((((matrizX[i,j])**2+(matrizY[i,j])**2)**(1/2))>umbralBordes):
 				image[i,j]=0
 			else:
 				image[i,j]=1
@@ -91,7 +92,7 @@ def media(t1,t2, pixels):
 	for i in range(t1,t2):
 		aux+=intensidades[i]*i
 	
-	if pixels!=0: aux=aux/pixels
+	aux=aux/pixels
 
 	return aux
 
@@ -102,30 +103,29 @@ def varianza( t1,t2, pixels, media):
 	for i in range(t1,t2):
 		aux+=((i-media)**2)*intensidades[i]
 	
-	if pixels!=0: aux=aux/pixels
+	aux=aux/pixels
 
 	return aux
 
 
 #### Calculate Within Class Variance####
-def varianzaClase():
+def varianzaClase(minValue,maxValue):
 	varianzas=[]
-	largoVector=len(intensidades)
-	for i in range (30,len(intensidades)):
+	
+	for i in range (minValue+1,maxValue-1):
 		###Background##
-		pesoBack=peso(0,i)
-		mediaBack=media(0,i,pesoBack)
-		varianzaBack=varianza(0,i,pesoBack,mediaBack)
+		pesoBack=peso(minValue,i)
+		mediaBack=media(minValue,i,pesoBack)
+		varianzaBack=varianza(minValue,i,pesoBack,mediaBack)
 		pesoBack=pesoBack/(rows*columns)
 		###Foreground##
-		pesoFor=peso(i,largoVector)
-		mediaFor=media(i,largoVector,pesoBack)
-		varianzaFor=varianza(i,largoVector,pesoFor,mediaFor)
+		pesoFor=peso(i,maxValue)
+		mediaFor=media(i,maxValue,pesoBack)
+		varianzaFor=varianza(i,maxValue,pesoFor,mediaFor)
 		pesoFor=pesoBack/(rows*columns)
 
 		varianzas.append(pesoBack*varianzaBack+pesoFor*varianzaFor)
-	print(varianzas)
-
+	
 	return varianzas.index(min(varianzas))
 		
 		
@@ -136,18 +136,18 @@ scalar = filtros.get_gaussian_filter()[1]
 
 filterImage = data.copy() 
 filterImage = filtro(filterImage,matriz,scalar)
+
 data=filterImage.copy()
 ###########################################
 
 ####Creating the borders matrix#########
 realizarHistograma()### Create the histogram
-umbralBordes = varianzaClase() #
-
+umbralBordes = varianzaClase(np.amin(data),np.amax(data))-120 #Otsu Thresholding
 
 matrizSobelX=[[-1,0,1],[-2,0,2],[-1,0,1]] #Gradient matrix in X
 matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
 
-imagenBordes = data.copy()
+imagenBordes = filterImage.copy()
 gradienteX=filtro(imagenBordes,matrizSobelX,1)
 gradienteY=filtro(imagenBordes,matrizSobelY,1)
 
