@@ -3,8 +3,10 @@ import pydicom
 import matplotlib.pyplot as plt
 import Gaussian as filtros
 from math import fabs
+from PIL import Image
+import numpy as numpy
 
-########Read image##############
+"""########Read image##############
 filename = "MRI Images/MRI01.dcm"
 
 ds = pydicom.dcmread(filename)
@@ -12,28 +14,40 @@ ds = pydicom.dcmread(filename)
 rows = int(ds.Rows)
 columns = int(ds.Columns)
 
-intensidades = [] ##Histogram Matrix
+
 
 ################################
+"""
+
+
+ds = Image.open("MRI Images/lenna.png")
+rows,columns=ds.size
+data = numpy.array(ds) 
+
+intensidades = [] ##Histogram Matrix
+
 
 #Funtion that fill the histogram's vector array
 def realizarHistograma():
-	for i in range((len(intensidades))):
+	for i in range(255):
 		intensidades.append(0)
 
 	for i in range(rows):
 		for j in range(columns):
-			intensidades[ds.pixel_array[i,j]]=intensidades[ds.pixel_array[i,j]]+1
+			#intensidades[ds.pixel_array[i,j]]=intensidades[ds.pixel_array[i,j]]+1
+			intensidades[data[i,j]]=intensidades[data[i,j]]+1
+
 ###############################################	
 
 
 #Function that apply the convolution filter from a given convolution matrix (3x3)
 def filtro(image,matriz,scalar):
+	copy=image.copy()
 
 	for i in range(rows-1):
 		for j in range(columns-1):
 			if i==0 or i==rows-1 or j==0 or j==columns-1:
-				image[i,j]=0
+				copy[i,j]=0
 			else:
 				aux=image[i-1,j-1]*matriz[0][0]
 				aux+=image[i-1,j]*matriz[0][1]
@@ -46,8 +60,8 @@ def filtro(image,matriz,scalar):
 				aux+=image[i+1,j+1]*matriz[2][2]
 				aux=aux/scalar
 				aux=int(aux)
-				image[i,j]=aux
-	return image
+				copy[i,j]=aux
+	return copy
 ###################################################################################
 
 #Funtion that fills a binary matrix that defines the image's borders
@@ -97,8 +111,7 @@ def varianza( t1,t2, pixels, media):
 def varianzaClase():
 	varianzas=[]
 	largoVector=len(intensidades)
-	for i in range (len(intensidades)):
-		print(i)
+	for i in range (30,len(intensidades)):
 		###Background##
 		pesoBack=peso(0,i)
 		mediaBack=media(0,i,pesoBack)
@@ -111,27 +124,30 @@ def varianzaClase():
 		pesoFor=pesoBack/(rows*columns)
 
 		varianzas.append(pesoBack*varianzaBack+pesoFor*varianzaFor)
+	print(varianzas)
 
-	return min(varianzas)
+	return varianzas.index(min(varianzas))
 		
 		
 
 ############Aplying the filter############
-matriz = filtros.get_rayleigh_filter()[0]
-scalar = filtros.get_rayleigh_filter()[1]
+matriz = filtros.get_gaussian_filter()[0]
+scalar = filtros.get_gaussian_filter()[1]
 
-filterImage = ds.pixel_array.copy() 
+filterImage = data.copy() 
 filterImage = filtro(filterImage,matriz,scalar)
+data=filterImage.copy()
 ###########################################
 
 ####Creating the borders matrix#########
 realizarHistograma()### Create the histogram
-umbralBordes = varianzaClase()### find the Otsu Thresholding
+umbralBordes = varianzaClase() #
+
 
 matrizSobelX=[[-1,0,1],[-2,0,2],[-1,0,1]] #Gradient matrix in X
 matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
 
-imagenBordes = ds.pixel_array.copy()
+imagenBordes = data.copy()
 gradienteX=filtro(imagenBordes,matrizSobelX,1)
 gradienteY=filtro(imagenBordes,matrizSobelY,1)
 
@@ -142,7 +158,7 @@ imagenBordes = definirBordes(imagenBordes,gradienteX,gradienteY)
 ####Configurating the GUI##################
 plt.subplot(1,7,1)
 plt.title('DICOM IMAGE')
-plt.imshow(ds.pixel_array,cmap=plt.get_cmap('gray'))
+plt.imshow(data,cmap=plt.get_cmap('gray'))
 
 
 plt.subplot(1,7,3)
