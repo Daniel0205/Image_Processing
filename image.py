@@ -28,14 +28,14 @@ intensidades = [] ##Histogram Matrix
 
 
 #Funtion that fill the histogram's vector array
-def realizarHistograma():
-	for i in range(np.amax(data)+1):
+def realizarHistograma(matriz):
+	for i in range(np.amax(matriz)+1):
 		intensidades.append(0)
 
 	for i in range(rows):
 		for j in range(columns):
 			#intensidades[ds.pixel_array[i,j]-1]=intensidades[ds.pixel_array[i,j]-1]+1
-			intensidades[data[i,j]]=intensidades[data[i,j]]+1
+			intensidades[matriz[i,j]]=intensidades[matriz[i,j]]+1
 
 	
 ###############################################	
@@ -115,16 +115,20 @@ def varianzaClase(minValue,maxValue):
 	for i in range (minValue+1,maxValue-1):
 		###Background##
 		pesoBack=peso(minValue,i)
+		print("for: "+str(pesoBack))
 		mediaBack=media(minValue,i,pesoBack)
 		varianzaBack=varianza(minValue,i,pesoBack,mediaBack)
 		pesoBack=pesoBack/(rows*columns)
 		###Foreground##
-		pesoFor=peso(i,maxValue)
-		mediaFor=media(i,maxValue,pesoBack)
-		varianzaFor=varianza(i,maxValue,pesoFor,mediaFor)
-		pesoFor=pesoBack/(rows*columns)
+		pesoFor=peso(i,maxValue+1)
+		mediaFor=media(i,maxValue+1,pesoFor)
+
+		print("for: "+str(pesoFor))
+		varianzaFor=varianza(i,maxValue+1,pesoFor,mediaFor)
+		pesoFor=pesoFor/(rows*columns)
 
 		varianzas.append(pesoBack*varianzaBack+pesoFor*varianzaFor)
+
 	
 	return varianzas.index(min(varianzas))
 		
@@ -137,12 +141,15 @@ scalar = filtros.get_gaussian_filter()[1]
 filterImage = data.copy() 
 filterImage = filtro(filterImage,matriz,scalar)
 
-data=filterImage.copy()
+
 ###########################################
 
 ####Creating the borders matrix#########
-realizarHistograma()### Create the histogram
-umbralBordes = varianzaClase(np.amin(data),np.amax(data))-120 #Otsu Thresholding
+realizarHistograma(filterImage)### Create the histogram
+umbralBordes = varianzaClase(np.amin(filterImage),np.amax(filterImage))#Otsu Thresholding
+
+print(umbralBordes)
+
 
 matrizSobelX=[[-1,0,1],[-2,0,2],[-1,0,1]] #Gradient matrix in X
 matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
