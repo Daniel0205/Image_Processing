@@ -13,8 +13,8 @@ from skimage import filters
 
 LARGE_FONT = ("Verdana",12)
 
-ds = Image.open("MRI Images/cameraman.bmp")
-rows,columns=ds.size
+ds = Image.open("MRI Images/lenna.png")
+columns,rows=ds.size
 data = np.array(ds) 
 
 intensidades = [] ##Histogram Matrix
@@ -93,8 +93,8 @@ def aplicarBordes(fig,canvas):
     matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
 
     imagenBordes = data.copy()
-    gradienteX=aplicarFiltro(imagenBordes,matrizSobelX,4)
-    gradienteY=aplicarFiltro(imagenBordes,matrizSobelY,4)
+    gradienteX=aplicarFiltro(imagenBordes,matrizSobelX,100)
+    gradienteY=aplicarFiltro(imagenBordes,matrizSobelY,100)
 
     imagenBordes = definirBordes(imagenBordes,gradienteX,gradienteY,umbralBordes)
 
@@ -124,9 +124,9 @@ def definirBordes(image,matrizX,matrizY,umbral):
     for i in range(rows):
         for j in range(columns):
             if ((((matrizX[i,j])**2+(matrizY[i,j])**2)**(1/2))>umbral):
-                image[i,j]=0
-            else:
                 image[i,j]=1
+            else:
+                image[i,j]=0
     return image
 
 
