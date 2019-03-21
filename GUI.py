@@ -9,15 +9,14 @@ from PIL import Image
 from math import fabs
 
 
+import cv2
+import math
+
 LARGE_FONT = ("Verdana",12)
 
 ds = Image.open("MRI Images/lenna.png")
 columns,rows=ds.size
 data = np.array(ds) 
-
-intensidades = [] ##Histogram Matrix
-
-
 
 #Function that apply the convolution filter from a given convolution matrix (3x3)
 def aplicarFiltro(image,matriz,scalar):
@@ -88,48 +87,47 @@ def aplicarBordes(fig,canvas):
     matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
 
     imagenBordes = data.copy()
-    gradienteX=aplicarFiltro(imagenBordes,matrizSobelX,1)
-    gradienteY=aplicarFiltro(imagenBordes,matrizSobelY,1)
+    gradienteX= cv2.filter2D(imagenBordes, -1,  np.asarray(matrizSobelX))#aplicarFiltro(imagenBordes,matrizSobelX,1)
+    gradienteY= cv2.filter2D(imagenBordes, -1,  np.asarray(matrizSobelY))#aplicarFiltro(imagenBordes,matrizSobelY,1)
 
-    matrizGradiente=crearMatrizGradiente(gradienteX,gradienteY)
-    intensidadesGradiente=llenarHistograma(intensidadesGradiente)
+    gradiente=crearMatrizGradiente(gradienteX,gradienteY)
+    intensidadesGradiente=llenarHistograma(gradiente)
 
-    umbralBordes = varianzaClase(intensidadesGradiente,matrizGradiente) #filters.threshold_otsu(data)##Otsu Thresholding
+    umbralBordes = varianzaClase(intensidadesGradiente,gradiente)#Otsu Thresholding
 
-    print(umbralBordes)
-
-    imagenBordes = definirBordes(imagenBordes,matrizGradiente,umbralBordes)
+    imagenBordes = definirBordes(gradiente,umbralBordes)
 
     if(len(fig.get_axes())!=1):
         fig.get_axes()[1].cla()
     bordes = fig.add_subplot(122)
-    bordes.imshow(imagenBordes, cmap=plt.cm.gray)
+    bordes.imshow(gradiente, cmap=plt.cm.gray)
     canvas.draw()
 
 def crearMatrizGradiente(matrizX,matrizY):
 
-	image = []
-	for i in range(rows):
-		for j in range(columns):
-			print(int(((matrizX[i,j])**2+(matrizY[i,j])**2)**(1/2)))
-			image[i,j]=int(((matrizX[i,j])**2+(matrizY[i,j])**2)**(1/2))
+    image = np.zeros((rows,columns),dtype=int)
+    for i in range(rows):
+        for j in range(columns):
+            image[i,j]=fabs(matrizX[i,j])+fabs(matrizY[i,j])#int(((matrizX[i,j])**2+(matrizY[i,j])**2)**(1/2))
 
-	return image
+    return image
 
 def llenarHistograma(imagen):
-	array = []
+    array = []
 
-	for i in range(np.amax(imagen)+1):
-		array.append(0)  
+    for i in range(np.amax(imagen)+1):
+     array.append(0)  
 
-	for i in range(rows):
-		for j in range(columns):
-	#intensidades[ds.pixel_array[i,j]-1]=intensidades[ds.pixel_array[i,j]-1]+1
-			array[imagen[i,j]]=array[imagen[i,j]]+1
+    for i in range(rows):
+        for j in range(columns):
+            #intensidades[ds.pixel_array[i,j]-1]=intensidades[ds.pixel_array[i,j]-1]+1
+            array[imagen[i,j]]=array[imagen[i,j]]+1
+    return array
 
 
 #Funtion that fills a binary matrix that defines the image's borders
-def definirBordes(image,gradiente,umbral):
+def definirBordes(gradiente,umbral):
+    image = np.zeros((rows,columns),dtype=int)
     for i in range(rows):
         for j in range(columns):
             if (gradiente[i,j]>umbral):
@@ -168,6 +166,7 @@ def aplicarFiltroRay(fig,canvas):
 
 def mostrarHistograma(fig,canvas):
 
+    intensidades=llenarHistograma(data)
 
     if(len(fig.get_axes())!=1):
         fig.get_axes()[1].cla()
@@ -180,6 +179,15 @@ def mostrarHistograma(fig,canvas):
 
 ####Configurating the GUI##################
 
+"""
+#interfaz grafica
+interfaz = tk.Tk()
+
+w = interfaz.winfo_screenwidth() 
+h = interfaz.winfo_screenheight()
+x = w/2 - 500/2
+y = h/2 - 500/2
+"""
 
 class ImageProgram(tk.Tk):
 
@@ -248,9 +256,7 @@ class ImagePage(tk.Frame):
 
         toolbar =NavigationToolbar2Tk(canvas,self)
         toolbar.update()
-        canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
-
-        intensidades=llenarHistograma(data)
+        canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)        
                 
         buttonBack = ttk.Button(self, text="Go to the start page", command=lambda: controller.show_frame("StartPage"))        
         buttonHist = ttk.Button(self, text="Make histogram", command=lambda:mostrarHistograma(fig,canvas))
