@@ -9,8 +9,6 @@ from PIL import Image
 from math import fabs
 
 
-from skimage import filters
-
 LARGE_FONT = ("Verdana",12)
 
 ds = Image.open("MRI Images/lenna.png")
@@ -46,13 +44,13 @@ def aplicarFiltro(image,matriz,scalar):
 ###################################################################################
 
 #### Calculate Within Class Variance####
-def varianzaClase():
+def varianzaClase(intensidad,gradiente):
     
     total = rows*columns
 
     sum = 0
-    for t in range (0,np.amax(data)+1):
-        sum += t * intensidades[t]
+    for t in range (0,np.amax(gradiente)+1):
+        sum += t * intensidad[t]
 
     sumB = 0
     wB = 0
@@ -62,13 +60,13 @@ def varianzaClase():
     threshold = 0
 
     for t in range (0,256):
-        wB += intensidades[t]               # Weight Background
+        wB += intensidad[t]               # Weight Background
         if (wB == 0): continue
 
         wF = total - wB                 # Weight Foreground
         if (wF == 0): break
 
-        sumB += float(t * intensidades[t])
+        sumB += float(t * intensidad[t])
 
         mB = sumB / wB            # Mean Background
         mF = (sum - sumB) / wF    # Mean Foreground
@@ -85,18 +83,22 @@ def varianzaClase():
 
 
 def aplicarBordes(fig,canvas):
-    umbralBordes = varianzaClase() #filters.threshold_otsu(data)##Otsu Thresholding
-
-    print(umbralBordes)
-
+ 
     matrizSobelX=[[-1,0,1],[-2,0,2],[-1,0,1]] #Gradient matrix in X
     matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
 
     imagenBordes = data.copy()
-    gradienteX=aplicarFiltro(imagenBordes,matrizSobelX,100)
-    gradienteY=aplicarFiltro(imagenBordes,matrizSobelY,100)
+    gradienteX=aplicarFiltro(imagenBordes,matrizSobelX,1)
+    gradienteY=aplicarFiltro(imagenBordes,matrizSobelY,1)
 
-    imagenBordes = definirBordes(imagenBordes,gradienteX,gradienteY,umbralBordes)
+    matrizGradiente=crearMatrizGradiente(gradienteX,gradienteY)
+    intensidadesGradiente=llenarHistograma(intensidadesGradiente)
+
+    umbralBordes = varianzaClase(intensidadesGradiente,matrizGradiente) #filters.threshold_otsu(data)##Otsu Thresholding
+
+    print(umbralBordes)
+
+    imagenBordes = definirBordes(imagenBordes,matrizGradiente,umbralBordes)
 
     if(len(fig.get_axes())!=1):
         fig.get_axes()[1].cla()
@@ -104,26 +106,33 @@ def aplicarBordes(fig,canvas):
     bordes.imshow(imagenBordes, cmap=plt.cm.gray)
     canvas.draw()
 
+def crearMatrizGradiente(matrizX,matrizY):
 
+	image = []
+	for i in range(rows):
+		for j in range(columns):
+			print(int(((matrizX[i,j])**2+(matrizY[i,j])**2)**(1/2)))
+			image[i,j]=int(((matrizX[i,j])**2+(matrizY[i,j])**2)**(1/2))
 
+	return image
 
+def llenarHistograma(imagen):
+	array = []
 
-def llenarHistograma():
+	for i in range(np.amax(imagen)+1):
+		array.append(0)  
 
-    for i in range(np.amax(data)+1):
-        intensidades.append(0)  
-
-    for i in range(rows):
-        for j in range(columns):
-            #intensidades[ds.pixel_array[i,j]-1]=intensidades[ds.pixel_array[i,j]-1]+1
-            intensidades[data[i,j]]=intensidades[data[i,j]]+1
+	for i in range(rows):
+		for j in range(columns):
+	#intensidades[ds.pixel_array[i,j]-1]=intensidades[ds.pixel_array[i,j]-1]+1
+			array[imagen[i,j]]=array[imagen[i,j]]+1
 
 
 #Funtion that fills a binary matrix that defines the image's borders
-def definirBordes(image,matrizX,matrizY,umbral):
+def definirBordes(image,gradiente,umbral):
     for i in range(rows):
         for j in range(columns):
-            if ((((matrizX[i,j])**2+(matrizY[i,j])**2)**(1/2))>umbral):
+            if (gradiente[i,j]>umbral):
                 image[i,j]=1
             else:
                 image[i,j]=0
@@ -241,7 +250,7 @@ class ImagePage(tk.Frame):
         toolbar.update()
         canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
-        llenarHistograma()
+        intensidades=llenarHistograma(data)
                 
         buttonBack = ttk.Button(self, text="Go to the start page", command=lambda: controller.show_frame("StartPage"))        
         buttonHist = ttk.Button(self, text="Make histogram", command=lambda:mostrarHistograma(fig,canvas))
