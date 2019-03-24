@@ -5,6 +5,7 @@ import Gaussian as filtros
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg,NavigationToolbar2Tk 
 from tkinter import font  as tkfont  # python 3
 from tkinter import ttk # python 3
+from tkinter import *
 from PIL import Image
 from math import fabs
 from tkinter import filedialog
@@ -61,6 +62,25 @@ def aplicarFiltro(image,kernel,scalar):
 ###################################################################################
 
 #### Calculate Within Class Variance####
+
+def consultarInformacion():
+    inf = "INFORMACION DEL PACIENTE:\n"
+    inf += "-Patient's Name:  " + str(ds.PatientName)+"\n"
+    inf += "-Patient ID: "+ str(ds.PatientID)+"\n"
+    inf += "-Patient's Birth Date: "+ str(ds.PatientBirthDate)+"\n"
+    inf += "-Patient's Sex:  " + str(ds.PatientSex)+"\n"
+    inf += "-Patient's Age : "+ str(ds.PatientAge )+"\n"
+    inf += "-Patient's Weight: "+ str(ds.PatientWeight)+"\n"
+    inf += "-Patient Position: "+ str(ds.PatientPosition)+"\n"    
+    inf += "-Additional Patient History:  "+ str(ds.AdditionalPatientHistory)+"\n\n"
+    inf += "INFORMACION DE LA IMAGEN\n"
+    inf += "-Acquisition Date: "+ str(ds.AcquisitionDate) +"\n"
+    inf += "-Slide Name:  " + str(ds.StationName )+"\n"
+    inf += "-Study Description:  " + str(ds.StudyDescription) +"\n"
+    inf += "-MR Acquisition Type:  " + str(ds.MRAcquisitionType) +"\n"
+    inf += "-Repetition Time:  " + str(ds.RepetitionTime) +"\n"
+
+    return inf
 
 
 def llenarHistograma(imagen):
@@ -231,7 +251,6 @@ def ubicarCentroides(k):
                 arrayCn[index].append(data[i,j])
 
                 centroides[i,j]=index*int(255/k)
-            #print("row: " + str(i)+" columns: "+str(j))
 
         iguales=True                
         for n in range(k):
@@ -258,14 +277,13 @@ def seleccionarImagen(parent,controller):
         columns=  int(ds.Rows)
         rows= int(ds.Columns)
 
-        print(ds)
     else:
         ds = Image.open(filename)
         columns,rows=ds.size
         data = np.array(ds) 
 
     page_name = ImagePage.__name__
-    frame = ImagePage(parent=parent, controller=controller)
+    frame = ImagePage(parent=parent, controller=controller,filename=filename)
     controller.frames[page_name] = frame
 
     # put all of the pages in the same location
@@ -380,9 +398,16 @@ class StartPage(tk.Frame):
 
 class ImagePage(tk.Frame):
     
-    def __init__(self, parent, controller):
+    def __init__(self, parent, controller,filename):
         tk.Frame.__init__(self, parent)
         self.controller = controller
+
+
+        w = self.winfo_screenwidth() 
+        h = self.winfo_screenheight()
+        x = w/2 - 500/2
+        y = h/2 - 500/2
+        controller.geometry("%dx%d+%d+%d" %  (w-5,h-50,x, y))
         
         label = ttk.Label(self,text="Image Page", font=LARGE_FONT)
         label.pack(side=tk.TOP, fill="x", pady=10)
@@ -406,21 +431,29 @@ class ImagePage(tk.Frame):
         size.set("3x3")
         #cb.bind('<<ComboboxSelected>>', lambda x:self.asignarTamano(size,cb.get()))
 
+
         centroidsNum = ttk.Combobox(self, values=("2", "3", "4", "5"),state="readonly")
         centroidsNum.set("Select number of centroids")
+
+        if(filename.find(".dcm")!=-1):
+            T = Text(self, width=50)
+            T.insert(END, consultarInformacion())        
+            T.config(state=DISABLED)
+            T.pack(side=tk.RIGHT)
                         
         buttonBack = ttk.Button(self, text="Go to the start page", command=lambda: controller.show_frame("StartPage"))        
         buttonHist = ttk.Button(self, text="Make Histogram", command=lambda:mostrarHistograma(fig,canvas))
         buttonFiltros = ttk.Button(self, text="Apply Filter",command=lambda:aplicarFiltros(fig,canvas,cb.get(),size.get()))          
         buttonKMeans = ttk.Button(self, text="Apply k-means",command=lambda:aplicarKMeans(fig,canvas,centroidsNum.get()))        
 
+        
         buttonBack.pack(side=tk.LEFT,padx=15)
-        buttonHist.pack(side=tk.LEFT,padx=15)         
-        cb.pack(side=tk.LEFT,padx=9)
-        size.pack(side=tk.LEFT,padx=9)
-        buttonFiltros.pack(side=tk.LEFT,padx=9)
-        centroidsNum.pack(side=tk.LEFT,padx=15)      
-        buttonKMeans.pack(side=tk.LEFT,padx=15)
+        buttonHist.pack(side=tk.LEFT,padx=10)         
+        cb.pack(side=tk.LEFT,padx=5)
+        size.pack(side=tk.LEFT,padx=5)
+        buttonFiltros.pack(side=tk.LEFT,padx=5)
+        centroidsNum.pack(side=tk.LEFT,padx=10)      
+        buttonKMeans.pack(side=tk.LEFT,padx=10)
     
     def asignarTamano(self,size,filtro):
 
