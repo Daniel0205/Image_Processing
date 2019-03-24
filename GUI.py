@@ -7,43 +7,42 @@ from tkinter import font  as tkfont  # python 3
 from tkinter import ttk # python 3
 from PIL import Image
 from math import fabs
+from tkinter import filedialog
 
+import pydicom
 
-import cv2
-import math
+#import cv2
+#import math
 
 LARGE_FONT = ("Verdana",12)
 
-ds = Image.open("MRI Images/lenna.png")
-columns,rows=ds.size
-data = np.array(ds) 
+ds = None
+columns=None
+rows=None
+data =  None
 
 matrizSobelX=[[-1,0,1],[-2,0,2],[-1,0,1]] #Gradient matrix in X
 matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
 
+
 #Function that apply the convolution filter from a given convolution matrix (3x3)
 def aplicarFiltro(image,kernel,scalar):
 	copy = image.copy()
-	s = len(kernel)#Tamaño del Kernel
-	n = int((s-1)/2)#numero de vecinos
+	tamano = len(kernel)#Tamaño del Kernel
+	vecinos = int((tamano-1)/2)#numero de vecinos
 
 	for i in range(rows):
 		for j in range(columns):
-			if(i<n or i>((rows-1)-n) or j<n or j>((columns-1)-n)):
+			if(i<vecinos or i>((rows-1)-vecinos) or j<vecinos or j>((columns-1)-vecinos)):
 				copy[i,j]=0
 			else:
 				px=0
 				py=0
 				aux=0.0
-				for kx in range(i-n,i+n+1):
-					
-					for ky in range(j-n,j+n+1):
+				for kx in range(i-vecinos,i+vecinos+1):					
+					for ky in range(j-vecinos,j+vecinos+1):
 
-						img = image[kx][ky]
-						krn = kernel[px][py]
-
-						aux = aux + (img*krn) 
-
+						aux = aux + (image[kx][ky]*kernel[px][py]) 
 						py += 1
 
 					#end for ky
@@ -93,6 +92,37 @@ def aplicarFiltroRay(tamano):
     filterImageRay = aplicarFiltro(filterImageRay,matrizRay,scalarRay)
 
     return filterImageRay
+
+
+def ordenar(lista):
+	n = len(lista)
+
+	for i in range (n):
+		for j in range (0, n-i-1):
+			if lista[j] > lista[j+1]:
+				aux = lista[j]
+				lista[j] = lista[j+1]
+				lista[j+1] = aux
+	return lista
+
+def aplicarFiltroMe(imagen, vecinos = 1):
+    copy = imagen.copy()
+    for i in range(rows):
+        for j in range(columns):
+            if i<vecinos or i>((rows-1)-vecinos) or j<vecinos or j>((columns-1)-vecinos):
+                copy[i][j]=imagen[i][j]
+            else:
+                lista =[]*9
+                mid = 4
+
+                for x in range(i-vecinos,i+vecinos+1):
+                    for y in range(j-vecinos,j+vecinos+1):
+                        lista.append(imagen[x][y])
+                lista = ordenar(lista)
+
+                copy[i][j] = lista[4]
+
+    return copy
 
     
 def crearMatrizGradiente(matrizX,matrizY):
@@ -175,57 +205,74 @@ def aplicarOtsu(gradiente):
     return imagenBordes
 
 
-def ubicarCentroides():
+def ubicarCentroides(k):
     contador=0
 
     centroides= data.copy()
 
-    c1=0
-    c2=int(np.amax(data)/2)
-    c3=np.amax(data)
+    cn = []
+
+    for i in range(k):
+        cn.append(int(255/k)*i)
 
     
     while(contador<2):
-        arrayC1 = []
-        arrayC2 = []
-        arrayC3 = []
+        arrayCn = []
+        
+        for n in range(k):
+            arrayCn.append([])
         for i in range(rows):
             for j in range(columns):
-                distanciaC1 = fabs(data[i,j]-c1)
-                distanciaC2 = fabs(data[i,j]-c2)
-                distanciaC3 = fabs(data[i,j]-c3)
+                distancias=[]
+                for n in range(k):
+                    distancias.append(fabs(cn[n]-data[i,j]))
 
-                if(distanciaC1<=distanciaC2 and distanciaC1<=distanciaC3):
-                    centroides[i,j]=1
-                    arrayC1.append(data[i,j])
-                elif(distanciaC2<=distanciaC1 and distanciaC2<=distanciaC3):
-                    centroides[i,j]=150
-                    arrayC2.append(data[i,j])
-                else: 
-                    centroides[i,j]=250
-                    arrayC3.append(data[i,j])
+                index=distancias.index(np.amin(distancias))
+                arrayCn[index].append(data[i,j])
+
+                centroides[i,j]=index*int(255/k)
             #print("row: " + str(i)+" columns: "+str(j))
-                
-        aux1=int(np.mean(arrayC1))
-        aux2=int(np.mean(arrayC2))
-        aux3=int(np.mean(arrayC3))
 
-        if(c1==aux1 and c2==aux2 and c3==aux3):
-            contador=contador+1
-        c1=aux1
-        c2=aux2
-        c3=aux3
+        iguales=True                
+        for n in range(k):
+            if(cn[n]!=int(np.mean(arrayCn[n]))):
+                cn[n]=int(np.mean(arrayCn[n]))
+                iguales=False
+        
+        if(iguales):
+            contador+=1
 
     return centroides
         
 
-
-
-
-
-    
-
 ####Configurating the GUI##################
+
+def seleccionarImagen(parent,controller):
+    global ds,columns,rows,data
+
+    filename = filedialog.askopenfilename()   
+
+    if(filename.find(".dcm")!=-1):
+        ds = pydicom.dcmread(filename) 
+        data =  ds.pixel_array.copy()
+        columns=  int(ds.Rows)
+        rows= int(ds.Columns)
+
+        print(ds)
+    else:
+        ds = Image.open(filename)
+        columns,rows=ds.size
+        data = np.array(ds) 
+
+    page_name = ImagePage.__name__
+    frame = ImagePage(parent=parent, controller=controller)
+    controller.frames[page_name] = frame
+
+    # put all of the pages in the same location
+    # the one on the top of the stacking order
+    # will be the one that is visible.
+    frame.grid(row=0, column=0, sticky="nsew")
+    controller.show_frame("ImagePage")
 
 def aplicarFiltros(fig,canvas,filtro,size):
     imagenF=[]
@@ -237,6 +284,9 @@ def aplicarFiltros(fig,canvas,filtro,size):
 
     elif(filtro=="Rayleigh"):
         imagenF=aplicarFiltroRay(tamano)
+    
+    elif (filtro=="Mediana"):
+        imagenF=aplicarFiltroMe(data.copy(),int((tamano-1)/2))
 
     elif(filtro=="Sobel"):
         imagenF=aplicarSobel()
@@ -246,22 +296,23 @@ def aplicarFiltros(fig,canvas,filtro,size):
         imagenF=aplicarOtsu(imagenF)
 
     
-
     if(len(fig.get_axes())!=1):
         fig.get_axes()[1].cla()
     filtroRay = fig.add_subplot(122)
     filtroRay.imshow(imagenF, cmap=plt.cm.gray)
     canvas.draw()
 
-def aplicarKMeans(fig,canvas):
-    
-    centroides=ubicarCentroides()
 
-    if(len(fig.get_axes())!=1): 
-        fig.get_axes()[1].cla()
-    filtroGaus = fig.add_subplot(122)
-    filtroGaus.imshow(centroides)
-    canvas.draw()
+def aplicarKMeans(fig,canvas,k):
+    if(k!="Select number of centroids"):
+
+        centroides=ubicarCentroides(int(k))
+
+        if(len(fig.get_axes())!=1): 
+            fig.get_axes()[1].cla()
+        filtroGaus = fig.add_subplot(122)
+        filtroGaus.imshow(centroides)
+        canvas.draw()
 
 def mostrarHistograma(fig,canvas):
 
@@ -274,16 +325,6 @@ def mostrarHistograma(fig,canvas):
     canvas.draw()
 
 
-"""
-#interfaz grafica
-interfaz = tk.Tk()
-
-w = interfaz.winfo_screenwidth() 
-h = interfaz.winfo_screenheight()
-x = w/2 - 500/2
-y = h/2 - 500/2
-"""
-
 class ImageProgram(tk.Tk):
 
     def __init__(self, *args, **kwargs):
@@ -295,19 +336,24 @@ class ImageProgram(tk.Tk):
         # will be raised above the others
         container = ttk.Frame(self)
         container.pack(side="top", fill="both", expand=True)
-        container.grid_rowconfigure(0, weight=1)
-        container.grid_columnconfigure(0, weight=1)
+        container.grid_rowconfigure(0, weight=500)
+        container.grid_columnconfigure(0, weight=500)
 
         self.frames = {}
-        for F in (StartPage, ImagePage):
-            page_name = F.__name__
-            frame = F(parent=container, controller=self)
-            self.frames[page_name] = frame
+        page_name = StartPage.__name__
+        frame = StartPage(parent=container, controller=self)
+        self.frames[page_name] = frame
 
-            # put all of the pages in the same location
-            # the one on the top of the stacking order
-            # will be the one that is visible.
-            frame.grid(row=0, column=0, sticky="nsew")
+        w = self.winfo_screenwidth() 
+        h = self.winfo_screenheight()
+        x = w/2 - 500/2
+        y = h/2 - 500/2
+        self.geometry("500x500+%d+%d" %  (x, y))
+
+        # put all of the pages in the same location
+        # the one on the top of the stacking order
+        # will be the one that is visible.
+        frame.grid(row=0, column=0, sticky="nsew")
 
         self.show_frame("StartPage")
 
@@ -323,12 +369,12 @@ class StartPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
         label = ttk.Label(self, text="Start Page", font=LARGE_FONT)
-        label.pack(side="top", fill="x", pady=10)
+        label.pack(side=tk.TOP)
 
         buttonImage = ttk.Button(self, text="Select an image",
-                            command=lambda: controller.show_frame("ImagePage"))
+                            command=lambda: seleccionarImagen(parent,controller))#controller.show_frame("ImagePage"))
 
-        buttonImage.pack()
+        buttonImage.pack(side=tk.TOP)
         
  #Funtion that fill the histogram's vector array
 
@@ -339,7 +385,7 @@ class ImagePage(tk.Frame):
         self.controller = controller
         
         label = ttk.Label(self,text="Image Page", font=LARGE_FONT)
-        label.pack(side="top", fill="x", pady=10)
+        label.pack(side=tk.TOP, fill="x", pady=10)
 
         fig = plt.Figure(figsize=(5,5), dpi=100)            
         subPlot = fig.add_subplot(121)
@@ -359,18 +405,22 @@ class ImagePage(tk.Frame):
         size = ttk.Combobox(self, values=("3x3", "5x5", "7x7", "9x9", "11x11"),state="readonly")
         size.set("3x3")
         #cb.bind('<<ComboboxSelected>>', lambda x:self.asignarTamano(size,cb.get()))
+
+        centroidsNum = ttk.Combobox(self, values=("2", "3", "4", "5"),state="readonly")
+        centroidsNum.set("Select number of centroids")
                         
         buttonBack = ttk.Button(self, text="Go to the start page", command=lambda: controller.show_frame("StartPage"))        
         buttonHist = ttk.Button(self, text="Make Histogram", command=lambda:mostrarHistograma(fig,canvas))
         buttonFiltros = ttk.Button(self, text="Apply Filter",command=lambda:aplicarFiltros(fig,canvas,cb.get(),size.get()))          
-        buttonKMeans = ttk.Button(self, text="Apply k-means",command=lambda:aplicarKMeans(fig,canvas))        
-        
-        cb.pack(side=tk.TOP)
-        size.pack(side=tk.TOP)
-        buttonFiltros.pack(side=tk.TOP)
-        buttonBack.pack(side=tk.TOP)
-        buttonHist.pack(side=tk.TOP)        
-        buttonKMeans.pack(side=tk.TOP)
+        buttonKMeans = ttk.Button(self, text="Apply k-means",command=lambda:aplicarKMeans(fig,canvas,centroidsNum.get()))        
+
+        buttonBack.pack(side=tk.LEFT,padx=15)
+        buttonHist.pack(side=tk.LEFT,padx=15)         
+        cb.pack(side=tk.LEFT,padx=9)
+        size.pack(side=tk.LEFT,padx=9)
+        buttonFiltros.pack(side=tk.LEFT,padx=9)
+        centroidsNum.pack(side=tk.LEFT,padx=15)      
+        buttonKMeans.pack(side=tk.LEFT,padx=15)
     
     def asignarTamano(self,size,filtro):
 
