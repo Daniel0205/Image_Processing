@@ -18,31 +18,104 @@ ds = Image.open("MRI Images/lenna.png")
 columns,rows=ds.size
 data = np.array(ds) 
 
-#Function that apply the convolution filter from a given convolution matrix (3x3)
-def aplicarFiltro(image,matriz,scalar):
-    copy=image.copy()
+matrizSobelX=[[-1,0,1],[-2,0,2],[-1,0,1]] #Gradient matrix in X
+matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
 
-    for i in range(rows):
-        for j in range(columns):
-            if i==0 or i==rows-1 or j==0 or j==columns-1:
-                copy[i,j]=0
-            else:
-                aux=image[i-1,j-1]*matriz[0][0]
-                aux+=image[i-1,j]*matriz[0][1]
-                aux+=image[i-1,j+1]*matriz[0][2]
-                aux+=image[i,j-1]*matriz[1][0]
-                aux+=image[i,j]*matriz[1][1]
-                aux+=image[i,j+1]*matriz[1][2]
-                aux+=image[i+1,j-1]*matriz[2][0]
-                aux+=image[i+1,j]*matriz[2][1]
-                aux+=image[i+1,j+1]*matriz[2][2]
-                aux=aux/scalar
-                aux=int(aux)
-                copy[i,j]=aux
-    return copy
+#Function that apply the convolution filter from a given convolution matrix (3x3)
+def aplicarFiltro(image,kernel,scalar):
+	copy = image.copy()
+	s = len(kernel)#Tamaño del Kernel
+	n = int((s-1)/2)#numero de vecinos
+
+	for i in range(rows):
+		for j in range(columns):
+			if(i<n or i>((rows-1)-n) or j<n or j>((columns-1)-n)):
+				copy[i,j]=0
+			else:
+				px=0
+				py=0
+				aux=0.0
+				for kx in range(i-n,i+n+1):
+					
+					for ky in range(j-n,j+n+1):
+
+						img = image[kx][ky]
+						krn = kernel[px][py]
+
+						aux = aux + (img*krn) 
+
+						py += 1
+
+					#end for ky
+					px += 1
+					py = 0
+				#end for kx
+
+				aux = aux/scalar
+				aux = int(aux)
+				copy[i][j] = aux
+						
+		#end for j
+	#end for i
+
+	return copy
 ###################################################################################
 
 #### Calculate Within Class Variance####
+
+
+def llenarHistograma(imagen):
+    array = []
+
+    for i in range(np.amax(imagen)+1):
+     array.append(0)  
+
+    for i in range(rows):
+        for j in range(columns):
+            #intensidades[ds.pixel_array[i,j]-1]=intensidades[ds.pixel_array[i,j]-1]+1
+            array[imagen[i,j]]=array[imagen[i,j]]+1
+    return array
+
+
+def aplicarFiltroGau(tamano):
+    matrizGau,scalarGau = filtros.get_gaussian_filter(int((tamano-1)/2),1)
+
+    filterImageGau = data.copy() 
+    filterImageGau = aplicarFiltro(filterImageGau,matrizGau,scalarGau)
+
+    return filterImageGau
+
+
+def aplicarFiltroRay(tamano):
+    matrizRay,scalarRay = filtros.get_rayleigh_filter(int((tamano-1)/2),1)
+
+    filterImageRay = data.copy() 
+    filterImageRay = aplicarFiltro(filterImageRay,matrizRay,scalarRay)
+
+    return filterImageRay
+
+    
+def crearMatrizGradiente(matrizX,matrizY):
+
+    image = np.zeros((rows,columns),dtype=int)
+    for i in range(rows):
+        for j in range(columns):
+            image[i,j]=fabs(matrizX[i,j])+fabs(matrizY[i,j])#int(((matrizX[i,j])**2+(matrizY[i,j])**2)**(1/2))
+
+    return image
+
+
+def aplicarSobel():
+ 
+    imagenBordes = data.copy()
+    gradienteX= aplicarFiltro(imagenBordes,matrizSobelX,100)#cv2.filter2D(imagenBordes, -1,  np.asarray(matrizSobelX))
+    gradienteY= aplicarFiltro(imagenBordes,matrizSobelY,100)#cv2.filter2D(imagenBordes, -1,  np.asarray(matrizSobelY))
+
+    gradiente=crearMatrizGradiente(gradienteX,gradienteY)
+    
+    return gradiente
+
+
 def varianzaClase(intensidad,gradiente):
     
     total = rows*columns
@@ -80,51 +153,7 @@ def varianzaClase(intensidad,gradiente):
     
     return threshold
 
-
-def aplicarBordes(fig,canvas):
- 
-    matrizSobelX=[[-1,0,1],[-2,0,2],[-1,0,1]] #Gradient matrix in X
-    matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
-
-    imagenBordes = data.copy()
-    gradienteX= cv2.filter2D(imagenBordes, -1,  np.asarray(matrizSobelX))#aplicarFiltro(imagenBordes,matrizSobelX,1)
-    gradienteY= cv2.filter2D(imagenBordes, -1,  np.asarray(matrizSobelY))#aplicarFiltro(imagenBordes,matrizSobelY,1)
-
-    gradiente=crearMatrizGradiente(gradienteX,gradienteY)
-    intensidadesGradiente=llenarHistograma(gradiente)
-
-    umbralBordes = varianzaClase(intensidadesGradiente,gradiente)#Otsu Thresholding
-
-    imagenBordes = definirBordes(gradiente,umbralBordes)
-
-    if(len(fig.get_axes())!=1):
-        fig.get_axes()[1].cla()
-    bordes = fig.add_subplot(122)
-    bordes.imshow(gradiente, cmap=plt.cm.gray)
-    canvas.draw()
-
-def crearMatrizGradiente(matrizX,matrizY):
-
-    image = np.zeros((rows,columns),dtype=int)
-    for i in range(rows):
-        for j in range(columns):
-            image[i,j]=fabs(matrizX[i,j])+fabs(matrizY[i,j])#int(((matrizX[i,j])**2+(matrizY[i,j])**2)**(1/2))
-
-    return image
-
-def llenarHistograma(imagen):
-    array = []
-
-    for i in range(np.amax(imagen)+1):
-     array.append(0)  
-
-    for i in range(rows):
-        for j in range(columns):
-            #intensidades[ds.pixel_array[i,j]-1]=intensidades[ds.pixel_array[i,j]-1]+1
-            array[imagen[i,j]]=array[imagen[i,j]]+1
-    return array
-
-
+  
 #Funtion that fills a binary matrix that defines the image's borders
 def definirBordes(gradiente,umbral):
     image = np.zeros((rows,columns),dtype=int)
@@ -136,33 +165,103 @@ def definirBordes(gradiente,umbral):
                 image[i,j]=0
     return image
 
+def aplicarOtsu(gradiente):
+    intensidadesGradiente=llenarHistograma(gradiente)
+
+    umbralBordes = varianzaClase(intensidadesGradiente,gradiente)#Otsu Thresholding
+
+    imagenBordes = definirBordes(gradiente,umbralBordes)
+
+    return imagenBordes
 
 
-def aplicarFiltroGau(fig,canvas):
-    matrizGau,scalarGau = filtros.get_gaussian_filter()
+def ubicarCentroides():
+    contador=0
 
-    filterImageGau = data.copy() 
-    filterImageGau = aplicarFiltro(filterImageGau,matrizGau,scalarGau)
+    centroides= data.copy()
 
-    if(len(fig.get_axes())!=1): 
-        fig.get_axes()[1].cla()
-    filtroGaus = fig.add_subplot(122)
-    filtroGaus.imshow(filterImageGau, cmap=plt.cm.gray)
-    canvas.draw()
+    c1=0
+    c2=int(np.amax(data)/2)
+    c3=np.amax(data)
+
+    
+    while(contador<2):
+        arrayC1 = []
+        arrayC2 = []
+        arrayC3 = []
+        for i in range(rows):
+            for j in range(columns):
+                distanciaC1 = fabs(data[i,j]-c1)
+                distanciaC2 = fabs(data[i,j]-c2)
+                distanciaC3 = fabs(data[i,j]-c3)
+
+                if(distanciaC1<=distanciaC2 and distanciaC1<=distanciaC3):
+                    centroides[i,j]=1
+                    arrayC1.append(data[i,j])
+                elif(distanciaC2<=distanciaC1 and distanciaC2<=distanciaC3):
+                    centroides[i,j]=150
+                    arrayC2.append(data[i,j])
+                else: 
+                    centroides[i,j]=250
+                    arrayC3.append(data[i,j])
+            #print("row: " + str(i)+" columns: "+str(j))
+                
+        aux1=int(np.mean(arrayC1))
+        aux2=int(np.mean(arrayC2))
+        aux3=int(np.mean(arrayC3))
+
+        if(c1==aux1 and c2==aux2 and c3==aux3):
+            contador=contador+1
+        c1=aux1
+        c2=aux2
+        c3=aux3
+
+    return centroides
+        
 
 
-def aplicarFiltroRay(fig,canvas):
-    matrizRay,scalarRay = filtros.get_rayleigh_filter()
 
-    filterImageRay = data.copy() 
-    filterImageRay = aplicarFiltro(filterImageRay,matrizRay,scalarRay)
+
+
+    
+
+####Configurating the GUI##################
+
+def aplicarFiltros(fig,canvas,filtro,size):
+    imagenF=[]
+
+    tamano=int(size[:size.index("x")])
+
+    if(filtro=="Gaussiano"):
+        imagenF=aplicarFiltroGau(tamano)       
+
+    elif(filtro=="Rayleigh"):
+        imagenF=aplicarFiltroRay(tamano)
+
+    elif(filtro=="Sobel"):
+        imagenF=aplicarSobel()
+
+    elif(filtro=="Otsu"):
+        imagenF=aplicarSobel()
+        imagenF=aplicarOtsu(imagenF)
+
+    
 
     if(len(fig.get_axes())!=1):
         fig.get_axes()[1].cla()
     filtroRay = fig.add_subplot(122)
-    filtroRay.imshow(filterImageRay, cmap=plt.cm.gray)
+    filtroRay.imshow(imagenF, cmap=plt.cm.gray)
     canvas.draw()
 
+def aplicarKMeans(fig,canvas):
+    
+    centroides=ubicarCentroides()
+
+    if(len(fig.get_axes())!=1): 
+        fig.get_axes()[1].cla()
+    filtroGaus = fig.add_subplot(122)
+    filtroGaus.imshow(centroides)
+    canvas.draw()
 
 def mostrarHistograma(fig,canvas):
 
@@ -174,10 +273,6 @@ def mostrarHistograma(fig,canvas):
     histograma.plot(intensidades)
     canvas.draw()
 
-
-    
-
-####Configurating the GUI##################
 
 """
 #interfaz grafica
@@ -256,20 +351,49 @@ class ImagePage(tk.Frame):
 
         toolbar =NavigationToolbar2Tk(canvas,self)
         toolbar.update()
-        canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)        
-                
+        canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)       
+
+        cb = ttk.Combobox(self, values=("Gaussiano", "Rayleigh", "Mediana", "Sobel", "Otsu"),state="readonly")
+        cb.set("Select a filter")
+
+        size = ttk.Combobox(self, values=("3x3", "5x5", "7x7", "9x9", "11x11"),state="readonly")
+        size.set("3x3")
+        #cb.bind('<<ComboboxSelected>>', lambda x:self.asignarTamano(size,cb.get()))
+                        
         buttonBack = ttk.Button(self, text="Go to the start page", command=lambda: controller.show_frame("StartPage"))        
-        buttonHist = ttk.Button(self, text="Make histogram", command=lambda:mostrarHistograma(fig,canvas))
-        buttonFilGau = ttk.Button(self, text="Apply Gauss filter",command=lambda:aplicarFiltroGau(fig,canvas))        
-        buttonFilRay = ttk.Button(self, text="Apply Ray filter",command=lambda:aplicarFiltroRay(fig,canvas)) 
-        buttonBordes = ttk.Button(self, text="Apply border",command=lambda:aplicarBordes(fig,canvas))        
-
+        buttonHist = ttk.Button(self, text="Make Histogram", command=lambda:mostrarHistograma(fig,canvas))
+        buttonFiltros = ttk.Button(self, text="Apply Filter",command=lambda:aplicarFiltros(fig,canvas,cb.get(),size.get()))          
+        buttonKMeans = ttk.Button(self, text="Apply k-means",command=lambda:aplicarKMeans(fig,canvas))        
+        
+        cb.pack(side=tk.TOP)
+        size.pack(side=tk.TOP)
+        buttonFiltros.pack(side=tk.TOP)
         buttonBack.pack(side=tk.TOP)
-        buttonHist.pack(side=tk.TOP)
-        buttonFilGau.pack(side=tk.TOP)
-        buttonFilRay.pack(side=tk.TOP)
-        buttonBordes.pack(side=tk.TOP)
+        buttonHist.pack(side=tk.TOP)        
+        buttonKMeans.pack(side=tk.TOP)
+    
+    def asignarTamano(self,size,filtro):
 
+        if(filtro=="Gaussiano"):
+            size = ttk.Combobox(self, values=("3x3", "5x5", "7x7", "9x9", "11x11"),state="readonly")    
+            print("entro0")
+
+        elif(filtro=="Rayleigh"):
+            size = ttk.Combobox(self, values=("3x3", "5x5", "7x7", "9x9", "11x11"),state="readonly")
+            print("entro1")        
+
+        elif(filtro=="Sobel"):
+            size = ttk.Combobox(self, values=("3x3"),state="readonly")
+            print("entro2")
+
+        elif(filtro=="Otsu"):
+            size = ttk.Combobox(self, values=("3x3"),state="readonly")
+            print("entro3")
+        
+        size.set("holasdf")
+        
+
+        
 
 if __name__ == "__main__":
     app = ImageProgram()
