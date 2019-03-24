@@ -24,26 +24,21 @@ matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
 #Function that apply the convolution filter from a given convolution matrix (3x3)
 def aplicarFiltro(image,kernel,scalar):
 	copy = image.copy()
-	s = len(kernel)#Tamaño del Kernel
-	n = int((s-1)/2)#numero de vecinos
+	tamano = len(kernel)#Tamaño del Kernel
+	vecinos = int((tamano-1)/2)#numero de vecinos
 
 	for i in range(rows):
 		for j in range(columns):
-			if(i<n or i>((rows-1)-n) or j<n or j>((columns-1)-n)):
+			if(i<vecinos or i>((rows-1)-vecinos) or j<vecinos or j>((columns-1)-vecinos)):
 				copy[i,j]=0
 			else:
 				px=0
 				py=0
 				aux=0.0
-				for kx in range(i-n,i+n+1):
-					
-					for ky in range(j-n,j+n+1):
+				for kx in range(i-vecinos,i+vecinos+1):					
+					for ky in range(j-vecinos,j+vecinos+1):
 
-						img = image[kx][ky]
-						krn = kernel[px][py]
-
-						aux = aux + (img*krn) 
-
+						aux = aux + (image[kx][ky]*kernel[px][py]) 
 						py += 1
 
 					#end for ky
@@ -93,6 +88,28 @@ def aplicarFiltroRay(tamano):
     filterImageRay = aplicarFiltro(filterImageRay,matrizRay,scalarRay)
 
     return filterImageRay
+
+
+def filtroMediana(imagen, vecinos = 1):
+    copy = imagen.copy()
+	for i in range(rows):
+		for j in range(columns):
+			if i<vecinos or i>((rows-1)-vecinos) or j<n or j>((columns-1)-vecinos):
+				copy[i][j]=imagen[i][j]
+			else:
+				lista =[]*9
+				mid = 4
+
+				for x in range(i-vecinos,i+vecinos+1):
+					for y in range(j-vecinos,j+vecinos+1):
+						lista.append(imagen[x][y])
+				lista = ordenar(lista)
+
+				copy[i][j] = lista[4]
+					
+
+
+	return copy
 
     
 def crearMatrizGradiente(matrizX,matrizY):
@@ -174,56 +191,82 @@ def aplicarOtsu(gradiente):
 
     return imagenBordes
 
+def calcularDirecciones():
 
-def ubicarCentroides():
+    direcciones=data.copy()
+    
+    gradienteX= aplicarFiltro(data.copy(),matrizSobelX,100)#cv2.filter2D(imagenBordes, -1,  np.asarray(matrizSobelX))
+    gradienteY= aplicarFiltro(data.copy(),matrizSobelY,100)#cv2.filter2D(imagenBordes, -1,  np.asarray(matrizSobelY))
+
+    for i in range(rows):
+        for j in range(columns):
+            angulo=np.arctan2(gradienteY[i,j], gradienteX[i,j])* 180 / np.pi
+
+            angulo=normalizarAngulo(angulo)
+            direcciones[i,j]=angulo
+
+    return direcciones
+
+
+def normalizarAngulo(angulo):
+    if (int(angulo)==0):
+        angulo==0
+    elif(angulo<=45):
+        angulo=45
+    else:
+        angulo=90
+
+    return int(angulo)
+
+
+def calcularDistancia(cn,direcciones,i,j,n):
+
+    aux=(data[i,j]-cn[n][0])**2
+    aux+=(direcciones[i,j]-cn[n][1])**2
+    aux=aux**(1/2)
+
+    return aux
+
+
+def ubicarCentroides(k,direcciones):
     contador=0
 
     centroides= data.copy()
 
-    c1=0
-    c2=int(np.amax(data)/2)
-    c3=np.amax(data)
+    cn = []
+
+    for i in range(k):
+        cn.append([int(255/k)*i,normalizarAngulo(i)])
 
     
     while(contador<2):
-        arrayC1 = []
-        arrayC2 = []
-        arrayC3 = []
+        arrayCn = []
+        
+        for n in range(k):
+            arrayCn.append([])
         for i in range(rows):
             for j in range(columns):
-                distanciaC1 = fabs(data[i,j]-c1)
-                distanciaC2 = fabs(data[i,j]-c2)
-                distanciaC3 = fabs(data[i,j]-c3)
+                distancias=[]
+                for n in range(k):
+                    distancias.append(calcularDistancia(cn,direcciones,i,j,n))
 
-                if(distanciaC1<=distanciaC2 and distanciaC1<=distanciaC3):
-                    centroides[i,j]=1
-                    arrayC1.append(data[i,j])
-                elif(distanciaC2<=distanciaC1 and distanciaC2<=distanciaC3):
-                    centroides[i,j]=150
-                    arrayC2.append(data[i,j])
-                else: 
-                    centroides[i,j]=250
-                    arrayC3.append(data[i,j])
+                index=distancias.index(np.amin(distancias))
+                arrayCn[index].append([data[i,j],direcciones[i,j]])
+
+                centroides[i,j]=index*int(255/k)
             #print("row: " + str(i)+" columns: "+str(j))
-                
-        aux1=int(np.mean(arrayC1))
-        aux2=int(np.mean(arrayC2))
-        aux3=int(np.mean(arrayC3))
 
-        if(c1==aux1 and c2==aux2 and c3==aux3):
-            contador=contador+1
-        c1=aux1
-        c2=aux2
-        c3=aux3
+        iguales=True                
+        for n in range(k):
+            if(cn[n]!=int(np.mean(arrayCn[n]))):
+                cn[n]=[int(np.mean(arrayCn[n][0])),normalizarAngulo(int(np.mean(arrayCn[n][1])))]
+                iguales=False
+        
+        if(iguales):
+            contador+=1
 
     return centroides
         
-
-
-
-
-
-    
 
 ####Configurating the GUI##################
 
@@ -237,6 +280,9 @@ def aplicarFiltros(fig,canvas,filtro,size):
 
     elif(filtro=="Rayleigh"):
         imagenF=aplicarFiltroRay(tamano)
+    
+    elif (filtro=="Mediana"):
+        imagenF=aplicarFiltroMe(data.copy())
 
     elif(filtro=="Sobel"):
         imagenF=aplicarSobel()
@@ -246,22 +292,25 @@ def aplicarFiltros(fig,canvas,filtro,size):
         imagenF=aplicarOtsu(imagenF)
 
     
-
     if(len(fig.get_axes())!=1):
         fig.get_axes()[1].cla()
     filtroRay = fig.add_subplot(122)
     filtroRay.imshow(imagenF, cmap=plt.cm.gray)
     canvas.draw()
 
-def aplicarKMeans(fig,canvas):
-    
-    centroides=ubicarCentroides()
 
-    if(len(fig.get_axes())!=1): 
-        fig.get_axes()[1].cla()
-    filtroGaus = fig.add_subplot(122)
-    filtroGaus.imshow(centroides)
-    canvas.draw()
+def aplicarKMeans(fig,canvas,k):
+    if(k!="Select number of centroids"):
+
+        direccionesGrad=calcularDirecciones()
+
+        centroides=ubicarCentroides(int(k),direccionesGrad)
+
+        if(len(fig.get_axes())!=1): 
+            fig.get_axes()[1].cla()
+        filtroGaus = fig.add_subplot(122)
+        filtroGaus.imshow(centroides)
+        canvas.draw()
 
 def mostrarHistograma(fig,canvas):
 
@@ -359,17 +408,21 @@ class ImagePage(tk.Frame):
         size = ttk.Combobox(self, values=("3x3", "5x5", "7x7", "9x9", "11x11"),state="readonly")
         size.set("3x3")
         #cb.bind('<<ComboboxSelected>>', lambda x:self.asignarTamano(size,cb.get()))
+
+        centroidsNum = ttk.Combobox(self, values=("2", "3", "4", "5"),state="readonly")
+        centroidsNum.set("Select number of centroids")
                         
         buttonBack = ttk.Button(self, text="Go to the start page", command=lambda: controller.show_frame("StartPage"))        
         buttonHist = ttk.Button(self, text="Make Histogram", command=lambda:mostrarHistograma(fig,canvas))
         buttonFiltros = ttk.Button(self, text="Apply Filter",command=lambda:aplicarFiltros(fig,canvas,cb.get(),size.get()))          
-        buttonKMeans = ttk.Button(self, text="Apply k-means",command=lambda:aplicarKMeans(fig,canvas))        
+        buttonKMeans = ttk.Button(self, text="Apply k-means",command=lambda:aplicarKMeans(fig,canvas,centroidsNum.get()))        
         
         cb.pack(side=tk.TOP)
         size.pack(side=tk.TOP)
         buttonFiltros.pack(side=tk.TOP)
         buttonBack.pack(side=tk.TOP)
-        buttonHist.pack(side=tk.TOP)        
+        buttonHist.pack(side=tk.TOP)  
+        centroidsNum.pack(side=tk.TOP)      
         buttonKMeans.pack(side=tk.TOP)
     
     def asignarTamano(self,size,filtro):
