@@ -8,15 +8,17 @@ from tkinter import ttk # python 3
 from PIL import Image
 from math import fabs
 
+import pydicom
 
 import cv2
 import math
 
 LARGE_FONT = ("Verdana",12)
 
-ds = Image.open("MRI Images/lenna.png")
-columns,rows=ds.size
-data = np.array(ds) 
+ds = pydicom.dcmread("Brain Images/brain_001.dcm")
+columns= int(ds.Rows)
+rows=int(ds.Columns)
+data = ds.pixel_array.copy()
 
 matrizSobelX=[[-1,0,1],[-2,0,2],[-1,0,1]] #Gradient matrix in X
 matrizSobelY=[[-1,-2,-1],[0,0,0],[1,2,1]] #Gradient matrix in Y
@@ -92,24 +94,22 @@ def aplicarFiltroRay(tamano):
 
 def filtroMediana(imagen, vecinos = 1):
     copy = imagen.copy()
-	for i in range(rows):
-		for j in range(columns):
-			if i<vecinos or i>((rows-1)-vecinos) or j<n or j>((columns-1)-vecinos):
-				copy[i][j]=imagen[i][j]
-			else:
-				lista =[]*9
-				mid = 4
+    for i in range(rows):
+    	for j in range(columns):
+    		if i<vecinos or i>((rows-1)-vecinos) or j<n or j>((columns-1)-vecinos):
+    			copy[i][j]=imagen[i][j]
+    		else:
+    			lista =[]*9
+    			mid = 4
 
-				for x in range(i-vecinos,i+vecinos+1):
-					for y in range(j-vecinos,j+vecinos+1):
-						lista.append(imagen[x][y])
-				lista = ordenar(lista)
+    			for x in range(i-vecinos,i+vecinos+1):
+    				for y in range(j-vecinos,j+vecinos+1):
+    					lista.append(imagen[x][y])
+    			lista = ordenar(lista)
 
-				copy[i][j] = lista[4]
-					
+    			copy[i][j] = lista[4]
 
-
-	return copy
+    return copy
 
     
 def crearMatrizGradiente(matrizX,matrizY):
@@ -258,12 +258,13 @@ def ubicarCentroides(k,direcciones):
 
         iguales=True                
         for n in range(k):
-            if(cn[n]!=int(np.mean(arrayCn[n]))):
-                cn[n]=[int(np.mean(arrayCn[n][0])),normalizarAngulo(int(np.mean(arrayCn[n][1])))]
-                iguales=False
+        	if(cn[n][0]!=int(np.mean(arrayCn[n][0])) or cn[n][1]!=normalizarAngulo(int(np.mean(arrayCn[n][1])))):
+        		cn[n]=[int(np.mean(arrayCn[n][0])),normalizarAngulo(int(np.mean(arrayCn[n][1])))]
+        		iguales=False
         
         if(iguales):
             contador+=1
+        print("Contador:"+str(contador))
 
     return centroides
         
