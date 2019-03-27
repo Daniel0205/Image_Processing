@@ -13,6 +13,9 @@ from PIL import Image
 
 LARGE_FONT = ("Verdana",12)#font
 
+imagenF=[]
+
+
 ####Configurating the GUI##################
 
 #Funtion where the image is selected
@@ -41,27 +44,35 @@ def seleccionarImagen(parent,controller):
 
 
 #Funtion that decide wich filter apply and draw the image in the GUI
-def aplicarFiltros(fig,canvas,filtro,size):
-    imagenF=[]
+def aplicarFiltros(self,fig,canvas,filtro,size):
+    global imagenF
+    imagenF=Lg.data.copy()
 
-    tamano=int(size[:size.index("x")])
+    if(size!="--X--"):
+        tamano=int(size[:size.index("x")])
 
-    if(filtro=="Gaussiano"):
-        imagenF=Lg.aplicarFiltroGau(tamano)       
+        if(filtro=="Gaussiano"):
+            imagenF=Lg.aplicarFiltroGau(tamano) 
+            self.buttonKMeans.config(state="normal")      
 
-    elif(filtro=="Rayleigh"):
-        imagenF=Lg.aplicarFiltroRay(tamano)
+        elif(filtro=="Rayleigh"):
+            imagenF=Lg.aplicarFiltroRay(tamano)
+            self.buttonKMeans.config(state="normal")
+        
+        elif (filtro=="Mediana"):
+            imagenF=Lg.aplicarFiltroMe(Lg.data.copy(),int((tamano-1)/2))
+            self.buttonKMeans.config(state="normal")
+
+        elif(filtro=="Sobel"):
+            imagenF=Lg.aplicarSobel()
+
+        elif(filtro=="Otsu"):
+            imagenF=Lg.aplicarSobel()
+            imagenF=Lg.aplicarOtsu(imagenF)
+    else:
+        self.buttonKMeans.config(state="normal")
+
     
-    elif (filtro=="Mediana"):
-        imagenF=Lg.aplicarFiltroMe(Lg.data.copy(),int((tamano-1)/2))
-
-    elif(filtro=="Sobel"):
-        imagenF=Lg.aplicarSobel()
-
-    elif(filtro=="Otsu"):
-        imagenF=Lg.aplicarSobel()
-        imagenF=Lg.aplicarOtsu(imagenF)
-
     
     if(len(fig.get_axes())!=1):
         fig.get_axes()[1].cla()
@@ -73,8 +84,8 @@ def aplicarFiltros(fig,canvas,filtro,size):
 #Funtion that apply and show the segmented image
 def aplicarKMeans(fig,canvas,k):
     if(k!="Select number of centroids"):
-
-        centroides=Lg.ubicarCentroides(int(k))
+        
+        centroides=Lg.ubicarCentroides(int(k),imagenF)
 
         if(len(fig.get_axes())!=1): 
             fig.get_axes()[1].cla()
@@ -143,6 +154,9 @@ class StartPage(tk.Frame):
         
  #Frame where is showed the image
 class ImagePage(tk.Frame):
+    buttonKMeans = None
+    size = None
+
     
     def __init__(self, parent, controller,filename):
         tk.Frame.__init__(self, parent)
@@ -173,12 +187,12 @@ class ImagePage(tk.Frame):
         cb = ttk.Combobox(self, values=("Gaussiano", "Rayleigh", "Mediana", "Sobel", "Otsu"),state="readonly")
         cb.set("Select a filter")
 
-        size = ttk.Combobox(self, values=("3x3", "5x5", "7x7", "9x9", "11x11"),state="readonly")
-        size.set("3x3")
-        #cb.bind('<<ComboboxSelected>>', lambda x:self.asignarTamano(size,cb.get()))
+        self.size = ttk.Combobox(self, values=("--X--"),state="readonly")
+        self.size.set("--X--")
+        cb.bind('<<ComboboxSelected>>', lambda x:self.asignarTamano(cb.get()))
 
 
-        centroidsNum = ttk.Combobox(self, values=("2", "3", "4", "5"),state="readonly")
+        centroidsNum = ttk.Combobox(self, values=("2","3","4","5","6"),state="readonly")
         centroidsNum.set("Select number of centroids")
 
         if(filename.find(".dcm")!=-1):
@@ -189,41 +203,30 @@ class ImagePage(tk.Frame):
                         
         buttonBack = ttk.Button(self, text="Go to the start page", command=lambda: controller.show_frame("StartPage"))        
         buttonHist = ttk.Button(self, text="Make Histogram", command=lambda:mostrarHistograma(fig,canvas))
-        buttonFiltros = ttk.Button(self, text="Apply Filter",command=lambda:aplicarFiltros(fig,canvas,cb.get(),size.get()))          
-        buttonKMeans = ttk.Button(self, text="Apply k-means",command=lambda:aplicarKMeans(fig,canvas,centroidsNum.get()))        
+        buttonFiltros = ttk.Button(self, text="Apply Filter",command=lambda:aplicarFiltros(self,fig,canvas,cb.get(),self.size.get()))          
+        self.buttonKMeans = ttk.Button(self,state=DISABLED, text="Apply k-means",command=lambda:aplicarKMeans(fig,canvas,centroidsNum.get()))        
 
         
         buttonBack.pack(side=tk.LEFT,padx=15)
         buttonHist.pack(side=tk.LEFT,padx=10)         
         cb.pack(side=tk.LEFT,padx=5)
-        size.pack(side=tk.LEFT,padx=5)
+        self.size.pack(side=tk.LEFT,padx=5)
         buttonFiltros.pack(side=tk.LEFT,padx=5)
         centroidsNum.pack(side=tk.LEFT,padx=10)      
-        buttonKMeans.pack(side=tk.LEFT,padx=10)
+        self.buttonKMeans.pack(side=tk.LEFT,padx=10)
     
 
-    """
-    def asignarTamano(self,size,filtro):
+    
+    def asignarTamano(self,filtro):
 
-        if(filtro=="Gaussiano"):
-            size = ttk.Combobox(self, values=("3x3", "5x5", "7x7", "9x9", "11x11"),state="readonly")    
-            print("entro0")
+        if(filtro=="Gaussiano" or filtro=="Rayleigh" or filtro=="Mediana"):
+            self.size.configure( values=("3x3", "5x5", "7x7", "9x9", "11x11"))
+        elif(filtro=="Sobel" or filtro=="Otsu"):
+            self.size.configure( values=("3x3")) 
+        self.size.set("3x3")
 
-        elif(filtro=="Rayleigh"):
-            size = ttk.Combobox(self, values=("3x3", "5x5", "7x7", "9x9", "11x11"),state="readonly")
-            print("entro1")        
-
-        elif(filtro=="Sobel"):
-            size = ttk.Combobox(self, values=("3x3"),state="readonly")
-            print("entro2")
-
-        elif(filtro=="Otsu"):
-            size = ttk.Combobox(self, values=("3x3"),state="readonly")
-            print("entro3")
         
-        size.set("holasdf")
-        
-"""
+
 
 #Start the GUI
 if __name__ == "__main__":

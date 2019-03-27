@@ -115,22 +115,23 @@ def ordenar(lista):
 
 #Funtion that apply the Median filter and return the image filtered
 def aplicarFiltroMe(imagen, vecinos = 1):
-    copy = imagen.copy()
+    copy=imagen.copy()
+    
+    tamKrn = (2*vecinos)+1
+    tamArr = tamKrn**2
     for i in range(rows):
         for j in range(columns):
             if i<vecinos or i>((rows-1)-vecinos) or j<vecinos or j>((columns-1)-vecinos):
-                copy[i][j]=imagen[i][j]
+                copy[i][j]=0
             else:
-                lista =[]*9
-                mid = 4
-
+                lista =[]*tamArr
                 for x in range(i-vecinos,i+vecinos+1):
                     for y in range(j-vecinos,j+vecinos+1):
                         lista.append(imagen[x][y])
                 lista = ordenar(lista)
-
-                copy[i][j] = lista[4]
-
+                
+                mid = int((len(lista)-1)/2)
+                copy[i][j] = lista[mid]
     return copy
 
 #Funtion that fill the gradient matrix with the gradient X and the gradient Y
@@ -215,10 +216,12 @@ def aplicarOtsu(gradiente):
     return imagenBordes
 
 #Funtion that segment the image finding the value of k centroids
-def ubicarCentroides(k):
+def ubicarCentroides(k,data):
+
+    colores=[[0,0,0],[255, 255, 255],[255, 0, 0],[0, 255, 0],[0, 0, 255],[255, 255, 0],[255, 0, 255]]
     contador=0
 
-    centroides= data.copy()
+    centroides= np.zeros((rows,columns,3))
 
     cn = []
 
@@ -235,12 +238,13 @@ def ubicarCentroides(k):
             for j in range(columns):
                 distancias=[]
                 for n in range(k):
-                    distancias.append(fabs(cn[n]-data[i,j]))
+                    
+                    distancias.append(fabs(cn[n]-data[i][j]))
 
                 index=distancias.index(np.amin(distancias))
-                arrayCn[index].append(data[i,j])
+                arrayCn[index].append(data[i][j])
 
-                centroides[i,j]=index*int(255/k)
+                centroides[i,j]=colores[index]
 
         iguales=True                
         for n in range(k):
