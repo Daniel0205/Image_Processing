@@ -51,22 +51,22 @@ def aplicarFiltros(self,fig,canvas,filtro,size):
     if(size!="--X--"):
         tamano=int(size[:size.index("x")])
 
-        if(filtro=="Gaussiano"):
+        if(filtro=="Gaussian Filter"):
             imagenF=Lg.aplicarFiltroGau(tamano) 
             self.buttonKMeans.config(state="normal")      
 
-        elif(filtro=="Rayleigh"):
+        elif(filtro=="Rayleigh Filter"):
             imagenF=Lg.aplicarFiltroRay(tamano)
             self.buttonKMeans.config(state="normal")
         
-        elif (filtro=="Mediana"):
+        elif (filtro=="Median Filter"):
             imagenF=Lg.aplicarFiltroMe(Lg.data.copy(),int((tamano-1)/2))
             self.buttonKMeans.config(state="normal")
 
-        elif(filtro=="Sobel"):
+        elif(filtro=="Sobel Operator"):
             imagenF=Lg.aplicarSobel()
 
-        elif(filtro=="Otsu"):
+        elif(filtro=="Otsu Method"):
             imagenF=Lg.aplicarSobel()
             imagenF=Lg.aplicarOtsu(imagenF)
     else:
@@ -184,7 +184,7 @@ class ImagePage(tk.Frame):
         toolbar.update()
         canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)       
 
-        cb = ttk.Combobox(self, values=("Gaussiano", "Rayleigh", "Mediana", "Sobel", "Otsu"),state="readonly")
+        cb = ttk.Combobox(self, values=("Gaussian Filter", "Rayleigh Filter", "Median Filter", "Sobel Operator", "Otsu Method"),state="readonly")
         cb.set("Select a filter")
 
         self.size = ttk.Combobox(self, values=("--X--"),state="readonly")
@@ -203,7 +203,7 @@ class ImagePage(tk.Frame):
                         
         buttonBack = ttk.Button(self, text="Go to the start page", command=lambda: controller.show_frame("StartPage"))        
         buttonHist = ttk.Button(self, text="Make Histogram", command=lambda:mostrarHistograma(fig,canvas))
-        buttonFiltros = ttk.Button(self, text="Apply Filter",command=lambda:aplicarFiltros(self,fig,canvas,cb.get(),self.size.get()))          
+        buttonFiltros = ttk.Button(self, text="Apply",command=lambda:aplicarFiltros(self,fig,canvas,cb.get(),self.size.get()))          
         self.buttonKMeans = ttk.Button(self,state=DISABLED, text="Apply k-means",command=lambda:aplicarKMeans(fig,canvas,centroidsNum.get()))        
 
         
@@ -219,9 +219,9 @@ class ImagePage(tk.Frame):
     
     def asignarTamano(self,filtro):
 
-        if(filtro=="Gaussiano" or filtro=="Rayleigh" or filtro=="Mediana"):
+        if(filtro=="Gaussian Filter" or filtro=="Rayleigh Filter" or filtro=="Median Filter"):
             self.size.configure( values=("3x3", "5x5", "7x7", "9x9", "11x11"))
-        elif(filtro=="Sobel" or filtro=="Otsu"):
+        elif(filtro=="Sobel Operator" or filtro=="Otsu Method"):
             self.size.configure( values=("3x3")) 
         self.size.set("3x3")
 

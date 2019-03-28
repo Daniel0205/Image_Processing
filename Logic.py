@@ -59,7 +59,7 @@ def consultarInformacion():
     inf += "-Patient's Sex:  " + str(ds.PatientSex)+"\n"
     inf += "-Patient's Age : "+ str(ds.PatientAge )+"\n"
     inf += "-Patient's Weight: "+ str(ds.PatientWeight)+"\n"
-    inf += "-Patient Position: "+ str(ds.PatientPosition)+"\n"    
+   # inf += "-Patient Position: "+ str(ds.PatientPosition)+"\n"    
     inf += "-Additional Patient History:  "+ str(ds.AdditionalPatientHistory)+"\n\n"
     inf += "INFORMACION DE LA IMAGEN\n"
     inf += "-Acquisition Date: "+ str(ds.AcquisitionDate) +"\n"
@@ -218,7 +218,7 @@ def aplicarOtsu(gradiente):
 #Funtion that segment the image finding the value of k centroids
 def ubicarCentroides(k,data):
 
-    colores=[[0,0,0],[255, 255, 255],[255, 0, 0],[0, 255, 0],[0, 0, 255],[255, 255, 0],[255, 0, 255]]
+    colores=[[255, 255, 255],[0, 0, 0],[0, 0, 255],[255, 0, 0],[255, 255, 0],[0, 255, 0],[255, 0, 255]]
     contador=0
 
     centroides= np.zeros((rows,columns,3))
