@@ -15,7 +15,7 @@ import math
 
 LARGE_FONT = ("Verdana",12)
 
-ds = pydicom.dcmread("Brain Images/brain_001.dcm")
+ds = pydicom.dcmread("Brain Images/brain_014.dcm")
 columns= int(ds.Rows)
 rows=int(ds.Columns)
 data = ds.pixel_array.copy()
@@ -229,9 +229,11 @@ def calcularDistancia(cn,direcciones,i,j,n):
 
 
 def ubicarCentroides(k,direcciones):
+    
+    colores=[[255, 255, 255],[0, 0, 0],[0, 0, 255],[255, 0, 0],[255, 255, 0],[0, 255, 0],[255, 0, 255]]
     contador=0
 
-    centroides= data.copy()
+    centroides= np.zeros((rows,columns,3))
 
     cn = []
 
@@ -253,7 +255,8 @@ def ubicarCentroides(k,direcciones):
                 index=distancias.index(np.amin(distancias))
                 arrayCn[index].append([data[i,j],direcciones[i,j]])
 
-                centroides[i,j]=index*int(255/k)
+                centroides[i,j]=colores[index]
+
             #print("row: " + str(i)+" columns: "+str(j))
 
         iguales=True                
@@ -264,7 +267,6 @@ def ubicarCentroides(k,direcciones):
         
         if(iguales):
             contador+=1
-        print("Contador:"+str(contador))
 
     return centroides
         
@@ -304,6 +306,8 @@ def aplicarKMeans(fig,canvas,k):
     if(k!="Select number of centroids"):
 
         direccionesGrad=calcularDirecciones()
+
+        data=aplicarFiltroRay(11)
 
         centroides=ubicarCentroides(int(k),direccionesGrad)
 
@@ -410,7 +414,7 @@ class ImagePage(tk.Frame):
         size.set("3x3")
         #cb.bind('<<ComboboxSelected>>', lambda x:self.asignarTamano(size,cb.get()))
 
-        centroidsNum = ttk.Combobox(self, values=("2", "3", "4", "5"),state="readonly")
+        centroidsNum = ttk.Combobox(self, values=("2", "3", "4", "5","6"),state="readonly")
         centroidsNum.set("Select number of centroids")
                         
         buttonBack = ttk.Button(self, text="Go to the start page", command=lambda: controller.show_frame("StartPage"))        
